@@ -16,6 +16,10 @@
 package com.example.android.sunshine.data;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.support.v7.preference.PreferenceManager;
+
+import com.example.android.sunshine.R;
 
 public class SunshinePreferences {
 
@@ -24,21 +28,18 @@ public class SunshinePreferences {
      * "Mountain View" is more recognizable than 94043.
      */
     public static final String PREF_CITY_NAME = "city_name";
-
     /*
      * In order to uniquely pinpoint the location on the map when we launch the
      * map intent, we store the latitude and longitude.
      */
     public static final String PREF_COORD_LAT = "coord_lat";
     public static final String PREF_COORD_LONG = "coord_long";
-
     /*
      * Before you implement methods to return your REAL preference for location,
      * we provide some default values to work with.
      */
     private static final String DEFAULT_WEATHER_LOCATION = "94043,USA";
     private static final double[] DEFAULT_WEATHER_COORDINATES = {37.4284, 122.0724};
-
     private static final String DEFAULT_MAP_LOCATION =
             "1600 Amphitheatre Parkway, Mountain View, CA 94043";
 
@@ -83,13 +84,18 @@ public class SunshinePreferences {
      * home of the headquarters of the Googleplex!
      *
      * @param context Context used to get the SharedPreferences
-     * @return Location The current user has set in SharedPreferences. Will default to
-     * "94043,USA" if SharedPreferences have not been implemented yet.
+     *
+     * @return Location The current user has set in SharedPreferences. Will default to "94043,USA"
+     * if SharedPreferences have not been implemented yet.
      */
     public static String getPreferredWeatherLocation(Context context) {
-        // TODO (1) Return the user's preferred location
+
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        String preferredLocation = preferences
+                .getString(context.getString(R.string.pref_location_key),
+                        context.getString(R.string.pref_location_default));
         /** This will be implemented in a future lesson **/
-        return getDefaultWeatherLocation();
+        return preferredLocation;
     }
 
     /**
@@ -100,9 +106,13 @@ public class SunshinePreferences {
      * @return true If metric display should be used
      */
     public static boolean isMetric(Context context) {
-        // TODO (2) Return true if the user's preference for units is metric, false otherwise
+
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        String unitValue = preferences.getString(context.getString(R.string.pref_units_key),
+                context.getString(R.string.pref_units_metric));
+        String metric = context.getString(R.string.pref_units_metric);
         /** This will be implemented in a future lesson **/
-        return true;
+        return unitValue.equals(metric);
     }
 
     /**
@@ -111,9 +121,11 @@ public class SunshinePreferences {
      * of the ocean off the west coast of Africa)
      *
      * @param context Used to get the SharedPreferences
+     *
      * @return An array containing the two coordinate values.
      */
     public static double[] getLocationCoordinates(Context context) {
+
         return getDefaultWeatherCoordinates();
     }
 
@@ -122,6 +134,7 @@ public class SunshinePreferences {
      * longitude will not be available until the lesson where the PlacePicker API is taught.
      *
      * @param context used to get the SharedPreferences
+     *
      * @return true if lat/long are set
      */
     public static boolean isLocationLatLonAvailable(Context context) {

@@ -20,8 +20,12 @@ import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.UriMatcher;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.support.annotation.NonNull;
+
+import com.example.android.sunshine.data.WeatherContract.WeatherEntry;
+import com.example.android.sunshine.utilities.SunshineDateUtils;
 
 /**
  * This class serves as the ContentProvider for all of Sunshine's data. This class allows us to
@@ -42,7 +46,6 @@ public class WeatherProvider extends ContentProvider {
      */
     public static final int CODE_WEATHER = 100;
     public static final int CODE_WEATHER_WITH_DATE = 101;
-
     /*
      * The URI Matcher used by this content provider. The leading "s" in this variable name
      * signifies that this UriMatcher is a static member variable of WeatherProvider and is a
@@ -65,7 +68,8 @@ public class WeatherProvider extends ContentProvider {
      * been tested and proven, you should almost always use it unless there is a compelling
      * reason not to.
      *
-     * @return A UriMatcher that correctly matches the constants for CODE_WEATHER and CODE_WEATHER_WITH_DATE
+     * @return A UriMatcher that correctly matches the constants for CODE_WEATHER and
+     * CODE_WEATHER_WITH_DATE
      */
     public static UriMatcher buildUriMatcher() {
 
@@ -87,7 +91,8 @@ public class WeatherProvider extends ContentProvider {
         matcher.addURI(authority, WeatherContract.PATH_WEATHER, CODE_WEATHER);
 
         /*
-         * This URI would look something like content://com.example.android.sunshine/weather/1472214172
+         * This URI would look something like content://com.example.android
+         * .sunshine/weather/1472214172
          * The "/#" signifies to the UriMatcher that if PATH_WEATHER is followed by ANY number,
          * that it should return the CODE_WEATHER_WITH_DATE code
          */
@@ -100,11 +105,11 @@ public class WeatherProvider extends ContentProvider {
      * In onCreate, we initialize our content provider on startup. This method is called for all
      * registered content providers on the application main thread at application launch time.
      * It must not perform lengthy operations, or application startup will be delayed.
-     *
+     * <p>
      * Nontrivial initialization (such as opening, upgrading, and scanning
      * databases) should be deferred until the content provider is used (via {@link #query},
      * {@link #bulkInsert(Uri, ContentValues[])}, etc).
-     *
+     * <p>
      * Deferred initialization keeps application startup fast, avoids unnecessary work if the
      * provider turns out not to be needed, and stops database errors (such as a full disk) from
      * halting application launch.
@@ -122,7 +127,6 @@ public class WeatherProvider extends ContentProvider {
         return true;
     }
 
-//  TODO (1) Implement the bulkInsert method
     /**
      * Handles requests to insert a set of new rows. In Sunshine, we are only going to be
      * inserting multiple rows of data at a time from a weather forecast. There is no use case
@@ -131,20 +135,62 @@ public class WeatherProvider extends ContentProvider {
      * to provide proper functionality for the insert method as well.
      *
      * @param uri    The content:// URI of the insertion request.
-     * @param values An array of sets of column_name/value pairs to add to the database.
-     *               This must not be {@code null}.
+     * @param values An array of sets of column_name/value pairs to add to the database. This must
+     *               not be {@code null}.
      *
      * @return The number of values that were inserted.
      */
     @Override
     public int bulkInsert(@NonNull Uri uri, @NonNull ContentValues[] values) {
-        throw new RuntimeException("Student, you need to implement the bulkInsert method!");
 
-//          TODO (2) Only perform our implementation of bulkInsert if the URI matches the CODE_WEATHER code
+        final SQLiteDatabase database = mOpenHelper.getWritableDatabase();
+        int match = sUriMatcher.match(uri);
 
-//              TODO (3) Return the number of rows inserted from our implementation of bulkInsert
+        switch (match) {
 
-//          TODO (4) If the URI does match match CODE_WEATHER, return the super implementation of bulkInsert
+            case CODE_WEATHER:
+                database.beginTransaction();
+                int rowsInserted = 0;
+                try {
+
+                    for (ContentValues value : values) {
+
+                        long weatherData = value.getAsLong(WeatherEntry.COLUMN_DATE);
+                        if (!SunshineDateUtils.isDateNormalized(weatherData)) {
+
+                            throw new IllegalArgumentException("Date must be normalized to insert");
+
+                        }
+
+                        long _id = database.insert(WeatherEntry.TABLE_NAME, null, value);
+                        if (_id != -1) {
+
+                            rowsInserted++;
+
+                        }
+
+                    }
+                    database.setTransactionSuccessful();
+
+                }
+                finally {
+
+                    database.endTransaction();
+
+                }
+
+                if (rowsInserted > 0) {
+
+                    getContext().getContentResolver().notifyChange(uri, null);
+
+                }
+                return rowsInserted;
+
+            default:
+                return super.bulkInsert(uri, values);
+
+        }
+
     }
 
     /**
@@ -156,10 +202,10 @@ public class WeatherProvider extends ContentProvider {
      *                      included.
      * @param selection     A selection criteria to apply when filtering rows. If null, then all
      *                      rows are included.
-     * @param selectionArgs You may include ?s in selection, which will be replaced by
-     *                      the values from selectionArgs, in order that they appear in the
-     *                      selection.
+     * @param selectionArgs You may include ?s in selection, which will be replaced by the values
+     *                      from selectionArgs, in order that they appear in the selection.
      * @param sortOrder     How the rows in the cursor should be sorted.
+     *
      * @return A Cursor containing the results of the query. In our implementation,
      */
     @Override
@@ -223,11 +269,8 @@ public class WeatherProvider extends ContentProvider {
                          * within the selectionArguments array will be inserted into the
                          * selection statement by SQLite under the hood.
                          */
-                        WeatherContract.WeatherEntry.COLUMN_DATE + " = ? ",
-                        selectionArguments,
-                        null,
-                        null,
-                        sortOrder);
+                        WeatherContract.WeatherEntry.COLUMN_DATE + " = ? ", selectionArguments,
+                        null, null, sortOrder);
 
                 break;
             }
@@ -244,14 +287,9 @@ public class WeatherProvider extends ContentProvider {
              * in our weather table.
              */
             case CODE_WEATHER: {
-                cursor = mOpenHelper.getReadableDatabase().query(
-                        WeatherContract.WeatherEntry.TABLE_NAME,
-                        projection,
-                        selection,
-                        selectionArgs,
-                        null,
-                        null,
-                        sortOrder);
+                cursor = mOpenHelper.getReadableDatabase()
+                                    .query(WeatherContract.WeatherEntry.TABLE_NAME, projection,
+                                            selection, selectionArgs, null, null, sortOrder);
 
                 break;
             }
@@ -270,10 +308,12 @@ public class WeatherProvider extends ContentProvider {
      * @param uri           The full URI to query
      * @param selection     An optional restriction to apply to rows when deleting.
      * @param selectionArgs Used in conjunction with the selection statement
+     *
      * @return The number of rows deleted
      */
     @Override
     public int delete(@NonNull Uri uri, String selection, String[] selectionArgs) {
+
         throw new RuntimeException("Student, you need to implement the delete method!");
     }
 
@@ -285,10 +325,12 @@ public class WeatherProvider extends ContentProvider {
      * return an image URI from this method.
      *
      * @param uri the URI to query.
+     *
      * @return nothing in Sunshine, but normally a MIME type string, or null if there is no type.
      */
     @Override
     public String getType(@NonNull Uri uri) {
+
         throw new RuntimeException("We are not implementing getType in Sunshine.");
     }
 
@@ -299,18 +341,21 @@ public class WeatherProvider extends ContentProvider {
      * {@link WeatherProvider#bulkInsert}.
      *
      * @param uri    The URI of the insertion request. This must not be null.
-     * @param values A set of column_name/value pairs to add to the database.
-     *               This must not be null
+     * @param values A set of column_name/value pairs to add to the database. This must not be null
+     *
      * @return nothing in Sunshine, but normally the URI for the newly inserted item.
      */
     @Override
     public Uri insert(@NonNull Uri uri, ContentValues values) {
+
         throw new RuntimeException(
                 "We are not implementing insert in Sunshine. Use bulkInsert instead");
     }
 
     @Override
-    public int update(@NonNull Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+    public int update(@NonNull Uri uri, ContentValues values, String selection,
+                      String[] selectionArgs) {
+
         throw new RuntimeException("We are not implementing update in Sunshine");
     }
 
@@ -322,6 +367,7 @@ public class WeatherProvider extends ContentProvider {
     @Override
     @TargetApi(11)
     public void shutdown() {
+
         mOpenHelper.close();
         super.shutdown();
     }

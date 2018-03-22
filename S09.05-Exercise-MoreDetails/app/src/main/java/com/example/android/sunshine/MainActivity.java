@@ -15,7 +15,6 @@
  */
 package com.example.android.sunshine;
 
-import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -37,23 +36,19 @@ import com.example.android.sunshine.data.SunshinePreferences;
 import com.example.android.sunshine.data.WeatherContract;
 import com.example.android.sunshine.utilities.FakeDataUtils;
 
-public class MainActivity extends AppCompatActivity implements
-        LoaderManager.LoaderCallbacks<Cursor>,
+public class MainActivity extends AppCompatActivity
+        implements LoaderManager.LoaderCallbacks<Cursor>,
         ForecastAdapter.ForecastAdapterOnClickHandler {
 
     private final String TAG = MainActivity.class.getSimpleName();
-
     /*
      * The columns of data that we are interested in displaying within our MainActivity's list of
      * weather data.
      */
-    public static final String[] MAIN_FORECAST_PROJECTION = {
-            WeatherContract.WeatherEntry.COLUMN_DATE,
-            WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,
-            WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,
-            WeatherContract.WeatherEntry.COLUMN_WEATHER_ID,
-    };
-
+    public static final String[] MAIN_FORECAST_PROJECTION =
+            {WeatherContract.WeatherEntry.COLUMN_DATE, WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,
+             WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,
+             WeatherContract.WeatherEntry.COLUMN_WEATHER_ID,};
     /*
      * We store the indices of the values in the array of Strings above to more quickly be able to
      * access the data from our query. If the order of the Strings above changes, these indices
@@ -63,8 +58,6 @@ public class MainActivity extends AppCompatActivity implements
     public static final int INDEX_WEATHER_MAX_TEMP = 1;
     public static final int INDEX_WEATHER_MIN_TEMP = 2;
     public static final int INDEX_WEATHER_CONDITION_ID = 3;
-
-
     /*
      * This ID will be used to identify the Loader responsible for loading our weather forecast. In
      * some cases, one Activity can deal with many Loaders. However, in our case, there is only one.
@@ -73,16 +66,14 @@ public class MainActivity extends AppCompatActivity implements
      * it is unique and consistent.
      */
     private static final int ID_FORECAST_LOADER = 44;
-
     private ForecastAdapter mForecastAdapter;
     private RecyclerView mRecyclerView;
     private int mPosition = RecyclerView.NO_POSITION;
-
     private ProgressBar mLoadingIndicator;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_forecast);
         getSupportActionBar().setElevation(0f);
@@ -145,7 +136,6 @@ public class MainActivity extends AppCompatActivity implements
         /* Setting the adapter attaches it to the RecyclerView in our layout. */
         mRecyclerView.setAdapter(mForecastAdapter);
 
-
         showLoading();
 
         /*
@@ -164,10 +154,11 @@ public class MainActivity extends AppCompatActivity implements
      *
      * @see "http://developer.android.com/guide/components/intents-common.html#Maps"
      * <p>
-     * Protip: Hold Command on Mac or Control on Windows and click that link to automagically
-     * open the Common Intents page
+     * Protip: Hold Command on Mac or Control on Windows and click that link to automagically open
+     * the Common Intents page
      */
     private void openPreferredLocationInMap() {
+
         double[] coords = SunshinePreferences.getLocationCoordinates(this);
         String posLat = Double.toString(coords[0]);
         String posLong = Double.toString(coords[1]);
@@ -178,8 +169,10 @@ public class MainActivity extends AppCompatActivity implements
 
         if (intent.resolveActivity(getPackageManager()) != null) {
             startActivity(intent);
-        } else {
-            Log.d(TAG, "Couldn't call " + geoLocation.toString() + ", no receiving apps installed!");
+        }
+        else {
+            Log.d(TAG,
+                    "Couldn't call " + geoLocation.toString() + ", no receiving apps installed!");
         }
     }
 
@@ -190,11 +183,11 @@ public class MainActivity extends AppCompatActivity implements
      *
      * @param loaderId The loader ID for which we need to create a loader
      * @param bundle   Any arguments supplied by the caller
+     *
      * @return A new Loader instance that is ready to start loading.
      */
     @Override
     public Loader<Cursor> onCreateLoader(int loaderId, Bundle bundle) {
-
 
         switch (loaderId) {
 
@@ -210,12 +203,8 @@ public class MainActivity extends AppCompatActivity implements
                  */
                 String selection = WeatherContract.WeatherEntry.getSqlSelectForTodayOnwards();
 
-                return new CursorLoader(this,
-                        forecastQueryUri,
-                        MAIN_FORECAST_PROJECTION,
-                        selection,
-                        null,
-                        sortOrder);
+                return new CursorLoader(this, forecastQueryUri, MAIN_FORECAST_PROJECTION, selection,
+                        null, sortOrder);
 
             default:
                 throw new RuntimeException("Loader Not Implemented: " + loaderId);
@@ -224,7 +213,7 @@ public class MainActivity extends AppCompatActivity implements
 
     /**
      * Called when a Loader has finished loading its data.
-     *
+     * <p>
      * NOTE: There is one small bug in this code. If no data is present in the cursor do to an
      * initial load being performed with no access to internet, the loading indicator will show
      * indefinitely, until data is present from the ContentProvider. This will be fixed in a
@@ -236,11 +225,14 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
 
-
         mForecastAdapter.swapCursor(data);
-        if (mPosition == RecyclerView.NO_POSITION) mPosition = 0;
+        if (mPosition == RecyclerView.NO_POSITION) {
+            mPosition = 0;
+        }
         mRecyclerView.smoothScrollToPosition(mPosition);
-        if (data.getCount() != 0) showWeatherDataView();
+        if (data.getCount() != 0) {
+            showWeatherDataView();
+        }
     }
 
     /**
@@ -258,20 +250,18 @@ public class MainActivity extends AppCompatActivity implements
         mForecastAdapter.swapCursor(null);
     }
 
-    //  TODO (38) Refactor onClick to accept a long instead of a String as its parameter
     /**
      * This method is for responding to clicks from our list.
      *
-     * @param weatherForDay String describing weather details for a particular day
+     * @param date String describing weather details for a particular day
      */
     @Override
-    public void onClick(String weatherForDay) {
-//      TODO (39) Refactor onClick to build a URI for the clicked date and and pass it with the Intent using setData
-        Context context = this;
-        Class destinationClass = DetailActivity.class;
-        Intent intentToStartDetailActivity = new Intent(context, destinationClass);
-        intentToStartDetailActivity.putExtra(Intent.EXTRA_TEXT, weatherForDay);
-        startActivity(intentToStartDetailActivity);
+    public void onClick(long date) {
+
+        Intent weatherDetailIntent = new Intent(MainActivity.this, DetailActivity.class);
+        Uri uriForDateClicked = WeatherContract.WeatherEntry.buildWeatherUriWithDate(date);
+        weatherDetailIntent.setData(uriForDateClicked);
+        startActivity(weatherDetailIntent);
     }
 
     /**
@@ -307,8 +297,8 @@ public class MainActivity extends AppCompatActivity implements
      *
      * @param menu The options menu in which you place your items.
      *
-     * @return You must return true for the menu to be displayed;
-     *         if you return false it will not be shown.
+     * @return You must return true for the menu to be displayed; if you return false it will not be
+     * shown.
      *
      * @see #onPrepareOptionsMenu
      * @see #onOptionsItemSelected

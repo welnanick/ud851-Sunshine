@@ -1,14 +1,24 @@
 package com.example.android.sunshine.utilities;
 
-
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Build;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationCompat.Builder;
+import android.support.v4.app.TaskStackBuilder;
+import android.support.v4.content.ContextCompat;
 
+import com.example.android.sunshine.DetailActivity;
 import com.example.android.sunshine.R;
+import com.example.android.sunshine.data.SunshinePreferences;
 import com.example.android.sunshine.data.WeatherContract;
 
 public class NotificationUtils {
@@ -17,12 +27,10 @@ public class NotificationUtils {
      * The columns of data that we are interested in displaying within our notification to let
      * the user know there is new weather data available.
      */
-    public static final String[] WEATHER_NOTIFICATION_PROJECTION = {
-            WeatherContract.WeatherEntry.COLUMN_WEATHER_ID,
-            WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,
-            WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,
-    };
-
+    public static final String[] WEATHER_NOTIFICATION_PROJECTION =
+            {WeatherContract.WeatherEntry.COLUMN_WEATHER_ID,
+             WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,
+             WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,};
     /*
      * We store the indices of the values in the array of Strings above to more quickly be able
      * to access the data from our query. If the order of the Strings above changes, these
@@ -31,8 +39,8 @@ public class NotificationUtils {
     public static final int INDEX_WEATHER_ID = 0;
     public static final int INDEX_MAX_TEMP = 1;
     public static final int INDEX_MIN_TEMP = 2;
-
-//  TODO (1) Create a constant int value to identify the notification
+    private static final int NOTIFICATION_ID = 1;
+    private static final String WEATHER_SYNC_CHANNEL_ID = "weather-sync";
 
     /**
      * Constructs and displays a notification for the newly updated weather for today.
@@ -42,19 +50,17 @@ public class NotificationUtils {
     public static void notifyUserOfNewWeather(Context context) {
 
         /* Build the URI for today's weather in order to show up to date data in notification */
-        Uri todaysWeatherUri = WeatherContract.WeatherEntry
-                .buildWeatherUriWithDate(SunshineDateUtils.normalizeDate(System.currentTimeMillis()));
+        Uri todaysWeatherUri = WeatherContract.WeatherEntry.buildWeatherUriWithDate(
+                SunshineDateUtils.normalizeDate(System.currentTimeMillis()));
 
         /*
-         * The MAIN_FORECAST_PROJECTION array passed in as the second parameter is defined in our WeatherContract
+         * The MAIN_FORECAST_PROJECTION array passed in as the second parameter is defined in our
+          * WeatherContract
          * class and is used to limit the columns returned in our cursor.
          */
-        Cursor todayWeatherCursor = context.getContentResolver().query(
-                todaysWeatherUri,
-                WEATHER_NOTIFICATION_PROJECTION,
-                null,
-                null,
-                null);
+        Cursor todayWeatherCursor = context.getContentResolver()
+                                           .query(todaysWeatherUri, WEATHER_NOTIFICATION_PROJECTION,
+                                                   null, null, null);
 
         /*
          * If todayWeatherCursor is empty, moveToFirst will return false. If our cursor is not
@@ -68,34 +74,50 @@ public class NotificationUtils {
             double low = todayWeatherCursor.getDouble(INDEX_MIN_TEMP);
 
             Resources resources = context.getResources();
-            int largeArtResourceId = SunshineWeatherUtils
-                    .getLargeArtResourceIdForWeatherCondition(weatherId);
+            int largeArtResourceId =
+                    SunshineWeatherUtils.getLargeArtResourceIdForWeatherCondition(weatherId);
 
-            Bitmap largeIcon = BitmapFactory.decodeResource(
-                    resources,
-                    largeArtResourceId);
+            Bitmap largeIcon = BitmapFactory.decodeResource(resources, largeArtResourceId);
 
             String notificationTitle = context.getString(R.string.app_name);
 
             String notificationText = getNotificationText(context, weatherId, high, low);
 
-            /* getSmallArtResourceIdForWeatherCondition returns the proper art to show given an ID */
-            int smallArtResourceId = SunshineWeatherUtils
-                    .getSmallArtResourceIdForWeatherCondition(weatherId);
+            /* getSmallArtResourceIdForWeatherCondition returns the proper art to show given an
+            ID */
+            int smallArtResourceId =
+                    SunshineWeatherUtils.getSmallArtResourceIdForWeatherCondition(weatherId);
 
-//          TODO (2) Use NotificationCompat.Builder to begin building the notification
+            NotificationManager notificationManager =
+                    (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-//          TODO (3) Create an Intent with the proper URI to start the DetailActivity
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationChannel mChannel = new NotificationChannel(WEATHER_SYNC_CHANNEL_ID,
+                        context.getString(R.string.main_notification_channel_name),
+                        NotificationManager.IMPORTANCE_HIGH);
+                notificationManager.createNotificationChannel(mChannel);
+            }
 
-//          TODO (4) Use TaskStackBuilder to create the proper PendingIntent
+            NotificationCompat.Builder builder = new Builder(context, WEATHER_SYNC_CHANNEL_ID)
+                    .setColor(ContextCompat.getColor(context, R.color.colorPrimary))
+                    .setSmallIcon(smallArtResourceId).setLargeIcon(largeIcon)
+                    .setContentTitle(notificationTitle).setContentText(notificationText)
+                    .setAutoCancel(true);
 
-//          TODO (5) Set the content Intent of the NotificationBuilder
+            Intent detailIntentForToday = new Intent(context, DetailActivity.class);
+            detailIntentForToday.setData(todaysWeatherUri);
 
-//          TODO (6) Get a reference to the NotificationManager
+            TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(context);
+            taskStackBuilder.addNextIntentWithParentStack(detailIntentForToday);
+            PendingIntent resultPendingIntent = taskStackBuilder
+                    .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
 
-//          TODO (7) Notify the user with the ID WEATHER_NOTIFICATION_ID
+            builder.setContentIntent(resultPendingIntent);
 
-//          TODO (8) Save the time at which the notification occurred using SunshinePreferences
+            notificationManager.notify(NOTIFICATION_ID, builder.build());
+
+            SunshinePreferences.saveLastNotificationTime(context, System.currentTimeMillis());
+
         }
 
         /* Always close your cursor when you're done with it to avoid wasting resources. */
@@ -115,22 +137,23 @@ public class NotificationUtils {
      * @param weatherId ID as determined by Open Weather Map
      * @param high      High temperature (either celsius or fahrenheit depending on preferences)
      * @param low       Low temperature (either celsius or fahrenheit depending on preferences)
+     *
      * @return Summary of a particular day's forecast
      */
-    private static String getNotificationText(Context context, int weatherId, double high, double low) {
+    private static String getNotificationText(Context context, int weatherId, double high,
+                                              double low) {
 
         /*
          * Short description of the weather, as provided by the API.
          * e.g "clear" vs "sky is clear".
          */
-        String shortDescription = SunshineWeatherUtils
-                .getStringForWeatherCondition(context, weatherId);
+        String shortDescription =
+                SunshineWeatherUtils.getStringForWeatherCondition(context, weatherId);
 
         String notificationFormat = context.getString(R.string.format_notification);
 
         /* Using String's format method, we create the forecast summary */
-        String notificationText = String.format(notificationFormat,
-                shortDescription,
+        String notificationText = String.format(notificationFormat, shortDescription,
                 SunshineWeatherUtils.formatTemperature(context, high),
                 SunshineWeatherUtils.formatTemperature(context, low));
 
